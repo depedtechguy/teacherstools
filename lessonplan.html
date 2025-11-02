@@ -155,7 +155,10 @@
     <!-- Main Application Logic (API Call and UI Handling) -->
     <script>
         const API_MODEL = 'gemini-2.5-flash-preview-09-2025';
-        const API_KEY = ""; // Placeholder, will be injected by the environment
+        // CRITICAL FIX FOR 403 ERROR: When deploying this code externally (like GitHub Pages), 
+        // you MUST replace the empty string below with your actual Gemini API Key.
+        // Example: const API_KEY = "AIzaSy...your-actual-key...";
+        const API_KEY = "AIzaSyBs7Etx8FwuIDt9ICrp1u-UeYwMF_uXmhg"; 
 
         // Global function for the button click
         async function handleGenerate() {
@@ -211,27 +214,36 @@
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${API_KEY}`;
             const payload = {
                 contents: [{ parts: [{ text: userQuery }] }],
+                tools: [{ "google_search": {} }],
                 systemInstruction: {
                     parts: [{ text: "You are a world-class academic assistant that creates detailed, standards-based lesson plans. Your output must be exclusively in well-formatted Markdown." }]
                 },
-                // Add tools property if Google Search grounding is needed (optional for this task, but good practice if current facts are involved)
-                // tools: [{ "google_search": {} }],
-                config: {
+                // Use the correct configuration property name: generationConfig
+                generationConfig: {
                     temperature: 0.7
                 }
             };
             
-            // 5. Fetch and Handle API Response (FIXED PARSING LOGIC HERE)
+            // 5. Fetch and Handle API Response (IMPROVED ERROR HANDLING)
             try {
-                // Implementing simple retry logic
-                let response = await fetch(apiUrl, {
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API Error: ${response.statusText}`);
+                    // Attempt to extract detailed error from response body for better debugging
+                    let errorDetails = response.statusText;
+                    try {
+                        const errorJson = await response.json();
+                        errorDetails = errorJson.error?.message || errorDetails;
+                    } catch (jsonError) {
+                        // Use statusText if JSON parsing fails
+                        console.error("Failed to parse error response body, using status text.", jsonError);
+                    }
+                    // Throw a custom error with the detailed message
+                    throw new Error(`API Request Failed (Status: ${response.status}): ${errorDetails}`);
                 }
 
                 const result = await response.json();
@@ -251,6 +263,7 @@
 
             } catch (error) {
                 console.error("API Call or Network Error:", error);
+                // Display the detailed error message caught above
                 outputContent.innerHTML = `<p class='text-red-600 font-semibold'>An unexpected error occurred:</p><p>${error.message}</p>`;
             } finally {
                 // 6. Reset UI
