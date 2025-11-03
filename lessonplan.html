@@ -30,8 +30,8 @@
 
     <div class="w-full max-w-6xl">
         <header class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-indigo-700" style="color:#8B7946;">EduLikha Lesson Plan Generator </h1>
-            <p class="text-gray-500 mt-2">Generate a detailed lesson plan instantly by Sir JJ.</p>
+            <h1 class="text-4xl font-extrabold text-indigo-700" style="color:#8B7946;">EduLikha Lesson Plan Generator</h1>
+            <p class="text-gray-500 mt-2">Generate a detailed lesson plan instantly.</p>
         </header>
 
         <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -106,11 +106,12 @@
     <script type="module">
         import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // NEW FIREBASE IMPORTS FOR VISITOR COUNTER
-        import { getFirestore, doc, runTransaction, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // UPDATED FIREBASE IMPORTS for Firestore visitor counter
+        import { getFirestore, doc, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables required by the environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // NOTE: Ensure your hosting environment properly injects __firebase_config 
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
@@ -118,33 +119,35 @@
 
         /**
          * Safely increments the visitor count in Firestore and updates the display.
-         * Uses a transaction to prevent race conditions.
+         * Uses a transaction for safe, atomic updates.
          */
         async function updateVisitorCount() {
+            if (!db) return; // Prevent execution if Firestore wasn't initialized
+            
             const counterRef = doc(db, "meta", "visitorCount");
             const counterDisplay = document.getElementById('visitorCounter');
 
             try {
-                // Use runTransaction to ensure atomic update (safe for multiple simultaneous visitors)
+                // Use runTransaction to safely read, modify, and write the new count
                 await runTransaction(db, async (transaction) => {
                     const counterDoc = await transaction.get(counterRef);
-                    if (!counterDoc.exists()) {
-                        // Initialize if the document doesn't exist
-                        transaction.set(counterRef, { count: 1 });
-                        counterDisplay.textContent = "Visitors: 1";
-                        console.log("Visitor counter initialized to 1.");
-                        return 1;
+                    
+                    let newCount = 1;
+                    if (counterDoc.exists()) {
+                        // Increment existing count
+                        newCount = counterDoc.data().count + 1;
+                        transaction.update(counterRef, { count: newCount });
+                    } else {
+                        // Initialize if document doesn't exist
+                        transaction.set(counterRef, { count: newCount });
                     }
-
-                    const newCount = counterDoc.data().count + 1;
-                    transaction.update(counterRef, { count: newCount });
+                    
                     counterDisplay.textContent = `Visitors: ${newCount.toLocaleString()}`;
                     console.log(`Visitor count incremented to: ${newCount}`);
-                    return newCount;
                 });
             } catch (error) {
                 console.error("Failed to update visitor count:", error);
-                counterDisplay.textContent = "Visitors: Error";
+                counterDisplay.textContent = "Visitors: Error (Check Firebase)";
             }
         }
 
@@ -155,14 +158,14 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                setLogLevel('Debug'); // Enable detailed Firebase logging
+                // setLogLevel('Debug'); // Optional: Enable detailed Firebase logging
                 
                 // Authentication Logic
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         document.getElementById('authStatus').textContent = `User: ${user.uid.substring(0, 8)}...`;
                         window.userId = user.uid;
-                        // Call the counter update function ONLY after successful initialization
+                        // Run counter update once authenticated
                         updateVisitorCount(); 
                     } else {
                         // Sign in using custom token or anonymously
@@ -188,9 +191,7 @@
 
     <script>
         const API_MODEL = 'gemini-2.5-flash-preview-09-2025';
-        // CRITICAL FIX FOR 403 ERROR: When deploying this code externally (like GitHub Pages), 
-        // you MUST replace the empty string below with your actual Gemini API Key.
-        // Example: const API_KEY = "AIzaSy...your-actual-key...";
+        // CRITICAL: Replace the placeholder with your actual Gemini API Key!
         const API_KEY = "AIzaSyBs7Etx8FwuIDt9ICrp1u-UeYwMF_uXmhg"; 
 
         // Global function for the button click
@@ -257,7 +258,7 @@
                 }
             };
             
-            // 5. Fetch and Handle API Response (IMPROVED ERROR HANDLING)
+            // 5. Fetch and Handle API Response
             try {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -266,22 +267,17 @@
                 });
 
                 if (!response.ok) {
-                    // Attempt to extract detailed error from response body for better debugging
                     let errorDetails = response.statusText;
                     try {
                         const errorJson = await response.json();
                         errorDetails = errorJson.error?.message || errorDetails;
                     } catch (jsonError) {
-                        // Use statusText if JSON parsing fails
                         console.error("Failed to parse error response body, using status text.", jsonError);
                     }
-                    // Throw a custom error with the detailed message
                     throw new Error(`API Request Failed (Status: ${response.status}): ${errorDetails}`);
                 }
 
                 const result = await response.json();
-                
-                // Robustly traversing the nested JSON structure
                 const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
                 if (generatedText) {
@@ -289,14 +285,12 @@
                     outputContent.innerHTML = marked.parse(generatedText);
                     errorFeedback.classList.add('hidden');
                 } else {
-                    // Handle cases where response is OK but content is missing or blocked
                     const safetyReason = result.candidates?.[0]?.finishReason || "Unknown Reason";
                     outputContent.innerHTML = `<p class='text-red-600 font-semibold'>Generation Failed.</p><p class='text-gray-500'>The model did not return text. Reason: ${safetyReason}</p>`;
                 }
 
             } catch (error) {
                 console.error("API Call or Network Error:", error);
-                // Display the detailed error message caught above
                 outputContent.innerHTML = `<p class='text-red-600 font-semibold'>An unexpected error occurred:</p><p>${error.message}</p>`;
             } finally {
                 // 6. Reset UI
@@ -310,5 +304,3 @@
 
 </body>
 </html>
-
-
