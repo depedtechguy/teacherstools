@@ -3,283 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Lesson Plan Generator</title>
+    <title>EduLikha AI Lesson Plan Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Load Marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f4f8; }
-        /* The card now has a subtle inner shadow to look more prominent */
-        .card { backdrop-filter: blur(10px); background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04); } 
+        .card { backdrop-filter: blur(10px); background-color: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .input-style { transition: all 0.2s; border: 1px solid #d1d5db; padding: 0.75rem; border-radius: 0.5rem; background-color: #f9fafb; }
-        .input-style:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); background-color: white; }
+        .input-style:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.2); background-color: white; }
         .markdown-output h1 { font-size: 1.875rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.25rem; }
         .markdown-output h2 { font-size: 1.5rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #1e40af; }
         .markdown-output ul { list-style: disc; margin-left: 1.5rem; padding-left: 0.5rem; }
         .markdown-output li { margin-bottom: 0.5rem; }
         .markdown-output p { margin-bottom: 1rem; }
+
+        /* Print layout optimization */
+        @media print {
+            body { background: white; }
+            #printButton, #generateButton, #authStatus { display: none !important; }
+            .card { box-shadow: none; background: white; border: none; }
+            .markdown-output h1, .markdown-output h2 { color: black !important; }
+            .markdown-output { font-size: 14px; line-height: 1.5; }
+            @page { size: A4; margin: 1in; }
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8 flex flex-col items-center min-h-screen">
     
-    <!-- Firebase Initialization Placeholder -->
     <div id="authStatus" class="absolute top-4 right-4 text-sm text-gray-500">Initializing...</div>
 
     <div class="w-full max-w-6xl">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-indigo-700"  style="color:#8B7946;">EduLikha Lesson Plan Generator</h1>
-            <p class="text-gray-500 mt-2">Generate a detailed lesson plan instantly.</p>
-        </header>
-
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <!-- Input Panel (Column 1) - Removed 'sticky top-8' -->
-            <div class="lg:col-span-1 card p-6 rounded-xl shadow-xl h-fit">
-                <h2 class="text-2xl font-bold text-gray-700 mb-4">Lesson Details</h2>
-
-                <div class="space-y-4">
-                    
-                    <div>
-                        <label for="topic" class="block text-sm font-medium text-gray-700 mb-1">Topic/Subject</label>
-                        <input type="text" id="topic" value="Photosynthesis in Plants" placeholder="e.g., The Roman Empire, Algebraic Equations" class="w-full input-style">
-                    </div>
-
-                    <div>
-                        <label for="gradeLevel" class="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
-                        <select id="gradeLevel" class="w-full input-style appearance-none">
-                            <option value="Kindergarten">Kindergarten (K)</option>
-                            <option value="1st Grade">1st Grade</option>
-                            <option value="2nd Grade">2nd Grade</option>
-                            <option value="3rd Grade">3rd Grade</option>
-                            <option value="4th Grade">4th Grade</option>
-                            <option value="5th Grade">5th Grade</option>
-                            <option value="6th Grade">6th Grade</option>
-                            <option value="7th Grade">7th Grade</option>
-                            <option value="8th Grade">8th Grade</option>
-                            <option value="9th Grade">9th Grade</option>
-                            <option value="10th Grade">10th Grade</option>
-                            <option value="11th Grade">11th Grade</option>
-                            <option value="12th Grade">12th Grade</option>
-                            <option value="College Level">College Level (Advanced)</option>
-                            <option value="Adult Education">Adult Education</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="duration" class="block text-sm font-medium text-gray-700 mb-1">Duration (Minutes)</label>
-                        <input type="number" id="duration" value="45" min="10" max="180" class="w-full input-style">
-                    </div>
-
-                    <div>
-                        <label for="learningObjectives" class="block text-sm font-medium text-gray-700 mb-1">Specific Objectives (Optional)</label>
-                        <textarea id="learningObjectives" rows="2" placeholder="e.g., Students will identify the reactants and products." class="w-full input-style"></textarea>
-                    </div>
-                </div>
-
-                <!-- THE GENERATE BUTTON IS HERE -->
-                <button id="generateButton" onclick="handleGenerate()" 
-                        class="w-full mt-6 flex items-center justify-center space-x-2 px-4 py-3 
-                               bg-green-600 hover:bg-green-700 
-                               text-white font-semibold rounded-lg 
-                               shadow-xl transform transition duration-150 ease-in-out 
-                               hover:scale-[1.02] active:scale-[0.98] disabled:bg-gray-400">
-                    <svg id="generateIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181-3.182A1.332 1.332 0 0 0 9.337 12H12a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 12 4.5V2.25c0-1.036-.84-1.875-1.875-1.875S8.25 1.214 8.25 2.25v2.25M6.75 4.5V2.25c0-1.036-.84-1.875-1.875-1.875S3 1.214 3 2.25v2.25" />
-                    </svg>
-                    <span id="buttonText">Generate Lesson Plan</span>
-                </button>
-
-                <p id="errorFeedback" class="text-sm text-red-500 mt-3 hidden"></p>
-            </div>
-
-            <!-- Output Panel (Column 2/3) -->
-            <div class="lg:col-span-2 card p-8 rounded-xl shadow-xl min-h-[600px]">
-                <h2 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">Generated Lesson Plan</h2>
-                <div id="outputContent" class="markdown-output text-gray-700">
-                    <p class="text-gray-500 italic">Enter the lesson details and click "Generate" to see your plan here.</p>
-                </div>
-            </div>
-
-        </main>
-    </div>
-
-    <!-- Firebase SDK Imports (MANDATORY) -->
-    <script type="module">
-        import { initializeApp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables required by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let db, auth;
-
-        // Initialize Firebase
-        if (firebaseConfig) {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                setLogLevel('Debug'); // Enable detailed Firebase logging
-                
-                // Authentication Logic
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        document.getElementById('authStatus').textContent = `User: ${user.uid.substring(0, 8)}...`;
-                        window.userId = user.uid;
-                    } else {
-                        // Sign in using custom token or anonymously
-                        try {
-                            if (initialAuthToken) {
-                                await signInWithCustomToken(auth, initialAuthToken);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
-                        } catch (error) {
-                            console.error("Firebase Sign-in Failed:", error);
-                            document.getElementById('authStatus').textContent = `Auth Error: ${error.code}`;
-                        }
-                    }
-                });
-
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                document.getElementById('authStatus').textContent = `Init Error: ${error.message}`;
-            }
-        }
-    </script>
-
-    <!-- Main Application Logic (API Call and UI Handling) -->
-    <script>
-        const API_MODEL = 'gemini-2.5-flash-preview-09-2025';
-        // CRITICAL FIX FOR 403 ERROR: When deploying this code externally (like GitHub Pages), 
-        // you MUST replace the empty string below with your actual Gemini API Key.
-        // Example: const API_KEY = "AIzaSy...your-actual-key...";
-        const API_KEY = "AIzaSyBs7Etx8FwuIDt9ICrp1u-UeYwMF_uXmhg"; 
-
-        // Global function for the button click
-        async function handleGenerate() {
-            const button = document.getElementById('generateButton');
-            const buttonText = document.getElementById('buttonText');
-            const outputContent = document.getElementById('outputContent');
-            const errorFeedback = document.getElementById('errorFeedback');
-
-            // 1. Get user inputs
-            const topic = document.getElementById('topic').value.trim();
-            const gradeLevel = document.getElementById('gradeLevel').value;
-            const duration = document.getElementById('duration').value;
-            const objectives = document.getElementById('learningObjectives').value.trim();
-
-            if (!topic) {
-                errorFeedback.textContent = "Please enter a Topic/Subject.";
-                errorFeedback.classList.remove('hidden');
-                return;
-            }
-            errorFeedback.classList.add('hidden');
-
-            // 2. Prepare UI for loading state
-            button.disabled = true;
-            button.classList.remove('bg-green-600', 'hover:bg-green-700');
-            button.classList.add('bg-gray-500', 'cursor-not-allowed');
-            buttonText.textContent = 'Generating...';
-            outputContent.innerHTML = `
-                <div class="flex items-center justify-center h-full min-h-[400px]">
-                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
-                    <span class="ml-3 text-indigo-500">Creating lesson plan draft...</span>
-                </div>
-            `;
-
-            // 3. Construct the prompt
-            const userQuery = `
-                Generate a detailed, structured lesson plan in Markdown format. 
-                The plan must be for a ${gradeLevel} class on the topic: "${topic}". 
-                The total duration is ${duration} minutes.
-
-                The lesson plan structure must include:
-                1. Lesson Title
-                2. Subject and Grade
-                3. Time Allotment (Total: ${duration} minutes)
-                4. Learning Objectives (Include the optional objective if provided: "${objectives}")
-                5. Materials/Resources
-                6. Procedure (Use clear headings for: Introduction/Hook (5 min), Direct Instruction/Activity (30 min), Assessment/Conclusion (10 min))
-                7. Differentiation/Extension Activities
-
-                Keep the tone professional and the content ready-to-use.
-            `;
-            
-            // 4. Construct the API payload
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${API_KEY}`;
-            const payload = {
-                contents: [{ parts: [{ text: userQuery }] }],
-                tools: [{ "google_search": {} }],
-                systemInstruction: {
-                    parts: [{ text: "You are a world-class academic assistant that creates detailed, standards-based lesson plans. Your output must be exclusively in well-formatted Markdown." }]
-                },
-                // Use the correct configuration property name: generationConfig
-                generationConfig: {
-                    temperature: 0.7
-                }
-            };
-            
-            // 5. Fetch and Handle API Response (IMPROVED ERROR HANDLING)
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    // Attempt to extract detailed error from response body for better debugging
-                    let errorDetails = response.statusText;
-                    try {
-                        const errorJson = await response.json();
-                        errorDetails = errorJson.error?.message || errorDetails;
-                    } catch (jsonError) {
-                        // Use statusText if JSON parsing fails
-                        console.error("Failed to parse error response body, using status text.", jsonError);
-                    }
-                    // Throw a custom error with the detailed message
-                    throw new Error(`API Request Failed (Status: ${response.status}): ${errorDetails}`);
-                }
-
-                const result = await response.json();
-                
-                // Robustly traversing the nested JSON structure
-                const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                if (generatedText) {
-                    // Use marked.js to convert Markdown to HTML for display
-                    outputContent.innerHTML = marked.parse(generatedText);
-                    errorFeedback.classList.add('hidden');
-                } else {
-                    // Handle cases where response is OK but content is missing or blocked
-                    const safetyReason = result.candidates?.[0]?.finishReason || "Unknown Reason";
-                    outputContent.innerHTML = `<p class='text-red-600 font-semibold'>Generation Failed.</p><p class='text-gray-500'>The model did not return text. Reason: ${safetyReason}</p>`;
-                }
-
-            } catch (error) {
-                console.error("API Call or Network Error:", error);
-                // Display the detailed error message caught above
-                outputContent.innerHTML = `<p class='text-red-600 font-semibold'>An unexpected error occurred:</p><p>${error.message}</p>`;
-            } finally {
-                // 6. Reset UI
-                button.disabled = false;
-                button.classList.remove('bg-gray-500', 'cursor-not-allowed');
-                button.classList.add('bg-green-600', 'hover:bg-green-700');
-                buttonText.textContent = 'Generate Lesson Plan';
-            }
-        }
-    </script>
-
-</body>
-</html>
-
-
-
-
-
-
+        <header class="t
